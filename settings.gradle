@@ -1,0 +1,2 @@
+include ':app'
+rootProject.name='M6App_V001B001'
