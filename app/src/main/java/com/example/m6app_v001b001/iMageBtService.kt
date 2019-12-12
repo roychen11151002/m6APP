@@ -58,10 +58,10 @@ data class iMageBtServiceData(var btDeviceNo: Int = 0, var btGroup: Int = 0) : P
 class iMageBtService : Service() {
     var isServiceStart = false
     lateinit var clientHandler: Messenger
-    var serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:88", 0)}
+    var serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:88")}
 
-    inner class ServiceBtDevice(var btBda: String, var btDeviceNo: Int) {
-        var rfcSocket = btAdapter.getRemoteDevice("C4:FF:BC:4F:FE:88").createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+    inner class ServiceBtDevice(var btBda: String) {
+        var rfcSocket = btAdapter.getRemoteDevice(btBda).createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
         var isBtConnected = false
         var btReceiverData = iMageBtServiceData(0, 0)
         var thread = Thread()
@@ -92,16 +92,12 @@ class iMageBtService : Service() {
                         isRfcRecHead = true
                         // Log.d(ktLog, "rfc header is detected")
                         if(rfcRecDataLen >= i + rfcRecData[i + 5] + 7) {
-                            // val rfcCmd = ByteArray(rfcRecData[i + 5] + 7)
-                            // Log.d(ktLog, "rfc command is detected ${i}")
-                            System.arraycopy(rfcRecData, i, btReceiverData.btCmd, 0, rfcRecData[i + 5] + 7)
+                            arraycopy(rfcRecData, i, btReceiverData.btCmd, 0, rfcRecData[i + 5] + 7)
                             rfcRecDataLen -= i + rfcRecData[i + 5] + 7
-                            System.arraycopy(rfcRecData, i + 7 + rfcRecData[i + 5], rfcRecData, 0, maxRfcRecDataLen - (i + 7 + rfcRecData[i + 5]))
+                            arraycopy(rfcRecData, i + 7 + rfcRecData[i + 5], rfcRecData, 0, maxRfcRecDataLen - (i + 7 + rfcRecData[i + 5]))
                             if(BtCheckSum(btReceiverData.btCmd)) {
                                 isRfcRecCmd = true
                                 // Log.d(KotlinService, "Receiver iMage command")
-                                btReceiverData.btGroup = 0
-                                btReceiverData.btDeviceNo = btDeviceNo
                                 sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
                                 isRfcRecHead = false
                                 i = 0
@@ -120,41 +116,47 @@ class iMageBtService : Service() {
                     rfcRecDataLen = 0
                 }
             }
-            Log.d(KotlinService, "bluetooth $btDeviceNo disconnect and read thread free")
+            Log.d(KotlinService, "bluetooth ${btReceiverData.btDeviceNo} disconnect and read thread free")
             isBtConnected = false
         }
 
         fun isConnect() = isBtConnected
 
         fun connect() {
-            Thread(Runnable {
-                Log.d(KotlinService, "\tconnect remote bluetooth address: ${btBda}")
-                rfcSocket = btAdapter.getRemoteDevice(btBda).createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
-                if(rfcSocket.isConnected == false) {
-                    for(i in 0 until 3) {
+            if(rfcSocket.isConnected == false) {
+                Thread(Runnable {
+                    Log.d(KotlinService, "\tconnect remote bluetooth address: ${btBda}")
+                    rfcSocket = btAdapter.getRemoteDevice(btBda)
+                        .createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+                    for (i in 0 until 3) {
                         try {
-                            Log.d(KotlinService, "bluetooth connecting $btDeviceNo")
+                            Log.d(
+                                KotlinService,
+                                "bluetooth connecting ${btReceiverData.btDeviceNo}"
+                            )
                             rfcSocket.connect()
                         } catch (e: IOException) {
-                            Log.d(KotlinService, "bluetooth connect fail $btDeviceNo")
+                            Log.d(
+                                KotlinService,
+                                "bluetooth connect fail ${btReceiverData.btDeviceNo}"
+                            )
                         }
-                        if(rfcSocket.isConnected) {
+                        if (rfcSocket.isConnected) {
                             thread = Thread(btReadThread)
                             thread.start()
                             break
                         } else
                             SystemClock.sleep(5000)
                     }
-                }
-
-                if(rfcSocket.isConnected) {
-                    Log.d(KotlinService, "bluetooth connected $btDeviceNo")
-                    isBtConnected = true
-                } else {
-                    Log.d(KotlinService, "bluetooth disconnect $btDeviceNo")
-                    isBtConnected = false
-                }
-            }).start()
+                }).start()
+            }
+            if(rfcSocket.isConnected) {
+                Log.d(KotlinService, "bluetooth connected ${btReceiverData.btDeviceNo}")
+                isBtConnected = true
+            } else {
+                Log.d(KotlinService, "bluetooth disconnect ${btReceiverData.btDeviceNo}")
+                isBtConnected = false
+            }
         }
 
         fun rfcCmdSend(cmdBuf: ByteArray) {
@@ -165,7 +167,7 @@ class iMageBtService : Service() {
         }
 
         fun close() {
-            Log.d(KotlinService, "bluetooth $btDeviceNo socket close")
+            Log.d(KotlinService, "bluetooth ${btReceiverData.btDeviceNo} socket close")
             rfcSocket.close()
             isBtConnected = false
         }
@@ -212,7 +214,7 @@ class iMageBtService : Service() {
     override fun onBind(intent: Intent): IBinder {
         val btServiceData: iMageBtServiceData = intent.getParcelableExtra("btServiceData")
         Log.d(KotlinService, "iMageBtService onBind ${btServiceData.btDeviceNo} ${btServiceData.btGroup}")
-        btDeviceInit()
+        // btDeviceInit()
         return iMageBtServiceBinder().getService()
     }
 
@@ -265,34 +267,44 @@ class iMageBtService : Service() {
             btReceiverData.btCmd[3] = 0x00.toByte()
             when(intent!!.action) {
                 "iMageBtService.iMageBtServiceReceiver" -> {
-                    val btServiceData: iMageBtServiceData = intent.getParcelableExtra("btServiceData")
-
-                    Log.d(KotlinService, "iMage bluetooth service receiver message ${btServiceData.btDeviceNo} ${btServiceData.btGroup}")
-                    when(btServiceData.btGroup) {
+                    btReceiverData = intent.getParcelableExtra("btServiceData")
+                    Log.d(KotlinService, "iMage bluetooth service receiver message ${btReceiverData.btDeviceNo} ${btReceiverData.btGroup}")
+                    when(btReceiverData.btGroup) {
                         0 -> {
-                            serviceBtDevice[btServiceData.btDeviceNo].rfcCmdSend(btServiceData.btCmd)
+                            serviceBtDevice[btReceiverData.btDeviceNo].rfcCmdSend(btReceiverData.btCmd)
+                        }
+                        1 -> {
+                            rfcCmdParse(btReceiverData.btCmd, btReceiverData.btDeviceNo)
                         }
                         else -> {
                             Log.d(KotlinService, "other order")
                         }
                     }
                 }
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    val btState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothDevice.ERROR)
+                    val btPrevState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_STATE, BluetoothDevice.ERROR)
+
+                    btReceiverData.btGroup = 1
+                    btReceiverData.btDeviceNo = 0
+                    btReceiverData.btCmd[4] = 0xe1.toByte()
+                    btReceiverData.btCmd[5] = 0x02.toByte()
+                    btReceiverData.btCmd[6] = btState.toByte()
+                    btReceiverData.btCmd[7] = btPrevState.toByte()
+                    BtCheckSum(btReceiverData.btCmd)
+                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
+                    Log.d(KotlinService, "ACTION_STATE_CHANGED $btState $btPrevState")
+                }
                 BluetoothDevice.ACTION_ACL_CONNECTED -> {
                     val btDevice: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
                     btReceiverData.btGroup = 1
-                    when(btDevice.address) {
-                        serviceBtDevice[0].btBda -> {
-                            btReceiverData.btDeviceNo = 0
-                        }
-                        serviceBtDevice[1].btBda -> {
-                            btReceiverData.btDeviceNo = 1
-                        }
-                        else -> {
-                            btReceiverData.btDeviceNo = -1
-                        }
+                    btReceiverData.btDeviceNo = when(btDevice.address) {
+                        serviceBtDevice[0].btBda -> 0
+                        serviceBtDevice[1].btBda -> 1
+                        else -> -1
                     }
-                    btReceiverData.btCmd[4] = 0xf1.toByte()
+                    btReceiverData.btCmd[4] = 0xe3.toByte()
                     btReceiverData.btCmd[5] = 0x01.toByte()
                     btReceiverData.btCmd[6] = 0x00.toByte()
                     BtCheckSum(btReceiverData.btCmd)
@@ -303,48 +315,56 @@ class iMageBtService : Service() {
                     val btDevice: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
 
                     btReceiverData.btGroup = 1
-                    when(btDevice.address) {
-                        serviceBtDevice[0].btBda -> {
-                            btReceiverData.btDeviceNo = 0
-                        }
-                        serviceBtDevice[1].btBda -> {
-                            btReceiverData.btDeviceNo = 1
-                        }
-                        else -> {
-                            btReceiverData.btDeviceNo = -1
-                        }
+                    btReceiverData.btDeviceNo = when(btDevice.address) {
+                        serviceBtDevice[0].btBda -> 0
+                        serviceBtDevice[1].btBda -> 1
+                        else -> -1
                     }
-                    btReceiverData.btCmd[4] = 0xf1.toByte()
+                    btReceiverData.btCmd[4] = 0xe3.toByte()
                     btReceiverData.btCmd[5] = 0x01.toByte()
                     btReceiverData.btCmd[6] = 0x01.toByte()
                     BtCheckSum(btReceiverData.btCmd)
                     sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
                     Log.d(KotlinService, "ACTION_ACL_DISCONNECTED ${btDevice.name} ${btDevice.address}")
                 }
-                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED -> {
                     val btDevice: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    val btState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
-                    val btPrevState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR)
+                    val btState = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothDevice.ERROR)
+                    val btPrevState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE, BluetoothDevice.ERROR)
 
                     btReceiverData.btGroup = 1
-                    when(btDevice.address) {
-                        serviceBtDevice[0].btBda -> {
-                            btReceiverData.btDeviceNo = 0
-                        }
-                        serviceBtDevice[1].btBda -> {
-                            btReceiverData.btDeviceNo = 1
-                        }
-                        else -> {
-                            btReceiverData.btDeviceNo = -1
-                        }
+                    btReceiverData.btDeviceNo = when(btDevice.address) {
+                        serviceBtDevice[0].btBda -> 0
+                        serviceBtDevice[1].btBda -> 1
+                        else -> -1
                     }
-                    btReceiverData.btCmd[4] = 0xfc.toByte()
+                    btReceiverData.btCmd[4] = 0xe5.toByte()
                     btReceiverData.btCmd[5] = 0x02.toByte()
                     btReceiverData.btCmd[6] = btState.toByte()
                     btReceiverData.btCmd[7] = btPrevState.toByte()
                     BtCheckSum(btReceiverData.btCmd)
                     sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-                    Log.d(KotlinService, "ACTION_BOND_STATE_CHANGED ${btState.toUInt().toString(16)} ${btPrevState.toUInt().toString(16)}")
+                    Log.d(KotlinService, "ACTION_CONNECTION_STATE_CHANGED $btState $btPrevState")
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                    btReceiverData.btGroup = 1
+                    btReceiverData.btDeviceNo = 0
+                    btReceiverData.btCmd[4] = 0xe7.toByte()
+                    btReceiverData.btCmd[5] = 0x01.toByte()
+                    btReceiverData.btCmd[6] = 0x01.toByte()
+                    BtCheckSum(btReceiverData.btCmd)
+                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
+                    Log.d(KotlinService, "ACTION_DISCOVERY_STARTED")
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    btReceiverData.btGroup = 1
+                    btReceiverData.btDeviceNo = 0
+                    btReceiverData.btCmd[4] = 0xe7.toByte()
+                    btReceiverData.btCmd[5] = 0x01.toByte()
+                    btReceiverData.btCmd[6] = 0x00.toByte()
+                    BtCheckSum(btReceiverData.btCmd)
+                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
+                    Log.d(KotlinService, "ACTION_DISCOVERY_FINISHED")
                 }
                 BluetoothDevice.ACTION_FOUND -> {
                     val btDevice: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
@@ -355,7 +375,7 @@ class iMageBtService : Service() {
 
                     btReceiverData.btGroup = 1
                     btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xf9.toByte()
+                    btReceiverData.btCmd[4] = 0xe9.toByte()
                     if(btDevice.name != null)
                         btReceiverData.btCmd[5] = (btDevice.name.length * 2 + 7).toByte()
                     else
@@ -382,116 +402,50 @@ class iMageBtService : Service() {
                     var s : Int
 
                     btReceiverData.btGroup = 1
-                    when(btDevice.address) {
-                        serviceBtDevice[0].btBda -> {
-                            btReceiverData.btDeviceNo = 0
-                        }
-                        serviceBtDevice[1].btBda -> {
-                            btReceiverData.btDeviceNo = 1
-                        }
-                        else -> {
-                            btReceiverData.btDeviceNo = -1
-                        }
+                    btReceiverData.btDeviceNo = when(btDevice.address) {
+                        serviceBtDevice[0].btBda -> 0
+                        serviceBtDevice[1].btBda -> 1
+                        else -> -1
                     }
-                    btReceiverData.btCmd[4] = 0xfa.toByte()
-                    btReceiverData.btCmd[5] = (btDevice.name.length * 2 + 7).toByte()
+                    btReceiverData.btCmd[4] = 0xeb.toByte()
+                    if(btDevice.name != null)
+                        btReceiverData.btCmd[5] = (btDevice.name.length * 2 + 7).toByte()
+                    else
+                        btReceiverData.btCmd[5] = 7.toByte()
                     btReceiverData.btCmd[6] = 0x00.toByte()
                     for(i in 0 .. 5) {
                         s = parseInt(str[i], 16)
                         btReceiverData.btCmd[i + 7] = s.toByte()
                     }
-                    for(i in 0 until btDevice.name.length) {
-                        s = btDevice.name[i].toInt()
-                        btReceiverData.btCmd[i * 2 + 13] = s.shr(8).toByte()
-                        btReceiverData.btCmd[i * 2 + 1 + 13] = s.and(0x00ff).toByte()
+                    if(btDevice.name != null) {
+                        for (i in 0 until btDevice.name.length) {
+                            s = btDevice.name[i].toInt()
+                            btReceiverData.btCmd[i * 2 + 13] = s.shr(8).toByte()
+                            btReceiverData.btCmd[i * 2 + 1 + 13] = s.and(0x00ff).toByte()
+                        }
                     }
                     BtCheckSum(btReceiverData.btCmd)
                     sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
                     Log.d(KotlinService, "ACTION_NAME_CHANGED")
                 }
-                BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val btState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothDevice.ERROR)
-                    val btPrevState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_STATE, BluetoothDevice.ERROR)
-
-                    btReceiverData.btGroup = 1
-                    btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xf0.toByte()
-                    btReceiverData.btCmd[5] = 0x02.toByte()
-                    btReceiverData.btCmd[6] = btState.toByte()
-                    btReceiverData.btCmd[7] = btPrevState.toByte()
-                    BtCheckSum(btReceiverData.btCmd)
-                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-                    Log.d(KotlinService, "ACTION_STATE_CHANGED $btState $btPrevState")
-                }
-                BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED -> {
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                     val btDevice: BluetoothDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    val btState = intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, BluetoothDevice.ERROR)
-                    val btPrevState = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_CONNECTION_STATE, BluetoothDevice.ERROR)
+                    val btState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR)
+                    val btPrevState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR)
 
                     btReceiverData.btGroup = 1
-                    when(btDevice.address) {
-                        serviceBtDevice[0].btBda -> {
-                            btReceiverData.btDeviceNo = 0
-                        }
-                        serviceBtDevice[1].btBda -> {
-                            btReceiverData.btDeviceNo = 1
-                        }
-                        else -> {
-                            btReceiverData.btDeviceNo = -1
-                        }
+                    btReceiverData.btDeviceNo = when(btDevice.address) {
+                        serviceBtDevice[0].btBda -> 0
+                        serviceBtDevice[1].btBda -> 1
+                        else -> -1
                     }
-                    btReceiverData.btCmd[4] = 0xf2.toByte()
+                    btReceiverData.btCmd[4] = 0xed.toByte()
                     btReceiverData.btCmd[5] = 0x02.toByte()
                     btReceiverData.btCmd[6] = btState.toByte()
                     btReceiverData.btCmd[7] = btPrevState.toByte()
                     BtCheckSum(btReceiverData.btCmd)
                     sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-                    Log.d(KotlinService, "ACTION_CONNECTION_STATE_CHANGED $btState $btPrevState")
-                }
-                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
-                    btReceiverData.btGroup = 1
-                    btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xf8.toByte()
-                    btReceiverData.btCmd[5] = 0x01.toByte()
-                    btReceiverData.btCmd[6] = 0x01.toByte()
-                    BtCheckSum(btReceiverData.btCmd)
-                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-                    Log.d(KotlinService, "ACTION_DISCOVERY_STARTED")
-                }
-                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                    btReceiverData.btGroup = 1
-                    btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xf8.toByte()
-                    btReceiverData.btCmd[5] = 0x01.toByte()
-                    btReceiverData.btCmd[6] = 0x00.toByte()
-                    BtCheckSum(btReceiverData.btCmd)
-                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-                    Log.d(KotlinService, "ACTION_DISCOVERY_FINISHED")
-                }
-                BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED -> {
-                    val btName = intent.getStringExtra(BluetoothAdapter.EXTRA_LOCAL_NAME)
-                    var s : Int
-
-                    btReceiverData.btGroup = 1
-                    btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xf9.toByte()
-                    btReceiverData.btCmd[5] = (btName.length * 2 + 7).toByte()
-                    btReceiverData.btCmd[6] = 0x00.toByte()
-                    btReceiverData.btCmd[7] = 0x00.toByte()
-                    btReceiverData.btCmd[8] = 0x00.toByte()
-                    btReceiverData.btCmd[9] = 0x00.toByte()
-                    btReceiverData.btCmd[10] = 0x00.toByte()
-                    btReceiverData.btCmd[11] = 0x00.toByte()
-                    btReceiverData.btCmd[12] = 0x00.toByte()
-                    for(i in 0 until btName.length) {
-                        s = btName[i].toInt()
-                        btReceiverData.btCmd[i * 2 + 13] = s.shr(8).toByte()
-                        btReceiverData.btCmd[i * 2 + 1 + 13] = s.and(0x00ff).toByte()
-                    }
-                    BtCheckSum(btReceiverData.btCmd)
-                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
-
-                    Log.d(KotlinService, "ACTION_LOCAL_NAME_CHANGED $btName")
+                    Log.d(KotlinService, "ACTION_BOND_STATE_CHANGED ${btState.toUInt().toString(16)} ${btPrevState.toUInt().toString(16)}")
                 }
                 BluetoothAdapter.ACTION_SCAN_MODE_CHANGED -> {
                     val btMode = intent.getIntExtra(BluetoothAdapter.EXTRA_SCAN_MODE, BluetoothDevice.ERROR)
@@ -499,13 +453,43 @@ class iMageBtService : Service() {
 
                     btReceiverData.btGroup = 1
                     btReceiverData.btDeviceNo = 0
-                    btReceiverData.btCmd[4] = 0xfd.toByte()
+                    btReceiverData.btCmd[4] = 0xef.toByte()
                     btReceiverData.btCmd[5] = 0x02.toByte()
                     btReceiverData.btCmd[6] = btMode.toByte()
                     btReceiverData.btCmd[7] = btPrevMode.toByte()
                     BtCheckSum(btReceiverData.btCmd)
                     sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
                     Log.d(KotlinService, "ACTION_SCAN_MODE_CHANGED $btMode $btPrevMode")
+                }
+                BluetoothAdapter.ACTION_LOCAL_NAME_CHANGED -> {
+                    val btName = intent.getStringExtra(BluetoothAdapter.EXTRA_LOCAL_NAME)
+                    var s : Int
+
+                    btReceiverData.btGroup = 1
+                    btReceiverData.btDeviceNo = 0
+                    btReceiverData.btCmd[4] = 0xf1.toByte()
+                    if(btName != null)
+                        btReceiverData.btCmd[5] = (btName.length * 2 + 7).toByte()
+                    else
+                        btReceiverData.btCmd[5] = 7.toByte()
+                    btReceiverData.btCmd[6] = 0x00.toByte()
+                    btReceiverData.btCmd[7] = 0x00.toByte()
+                    btReceiverData.btCmd[8] = 0x00.toByte()
+                    btReceiverData.btCmd[9] = 0x00.toByte()
+                    btReceiverData.btCmd[10] = 0x00.toByte()
+                    btReceiverData.btCmd[11] = 0x00.toByte()
+                    btReceiverData.btCmd[12] = 0x00.toByte()
+                    if(btName != null) {
+                        for (i in 0 until btName.length) {
+                            s = btName[i].toInt()
+                            btReceiverData.btCmd[i * 2 + 13] = s.shr(8).toByte()
+                            btReceiverData.btCmd[i * 2 + 1 + 13] = s.and(0x00ff).toByte()
+                        }
+                    }
+                    BtCheckSum(btReceiverData.btCmd)
+                    sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btReceiverData))
+
+                    Log.d(KotlinService, "ACTION_LOCAL_NAME_CHANGED $btName")
                 }
                 else -> {
                     Log.d(KotlinService, "broadcast receiver other message")
@@ -517,9 +501,11 @@ class iMageBtService : Service() {
     fun btDeviceInit() {
         if(isServiceStart == false) {
             for(i in 0 until maxServiceBtDevice) {
-                serviceBtDevice[i].btDeviceNo = i
+                //serviceBtDevice[i].btDeviceNo = i
+                serviceBtDevice[i].btReceiverData.btGroup = 0
                 serviceBtDevice[i].btReceiverData.btDeviceNo = i
             }
+/*
             if (serviceBtDevice[0].isConnect() == false) {
                 serviceBtDevice[0].connect()
             }
@@ -527,7 +513,104 @@ class iMageBtService : Service() {
                 serviceBtDevice[1].btBda = "C4:FF:BC:4F:FE:86"
                 serviceBtDevice[1].connect()
             }
+ */
         }
         isServiceStart = true
+    }
+
+    @ExperimentalUnsignedTypes
+    fun rfcCmdParse(cmdBuf: ByteArray, btDevice: Int) {
+        when(cmdBuf[4]) {
+            0xe0.toByte() -> {
+                when(cmdBuf[6]) {
+                    0x00.toByte() -> serviceBtDevice[btDevice].close()
+                    0x01.toByte() -> serviceBtDevice[btDevice].connect()
+                    else -> serviceBtDevice[btDevice].close()
+                }
+            }
+            0xe3.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x00.toByte() -> "CONNECTED"
+                    0x01.toByte() -> "DISCONNECT"
+                    else -> "UNKNOWN"
+                }
+                Log.d(KotlinService, "device: $btDevice connect state: $str")
+            }
+            0xe5.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x01.toByte() -> "STATE_CONNECTED"
+                    0x02.toByte() -> "STATE_DISCONNECT"
+                    else -> "STATE_UNKNOWN"
+                }
+                Log.d(KotlinService,  "bluetooth connect state: $str")
+            }
+            0xe7.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x00.toByte() -> "DISABLE"
+                    0x01.toByte() -> "ENABLE"
+                    else -> "KNOWN"
+                }
+                Log.d(KotlinService,  "bluetooth DISCOVERY: $str")
+            }
+            0xe9.toByte() -> {
+                var bda = ""
+                var name = ""
+                var c : Char
+
+                for(i in 0 .. 5) {
+                    bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
+                }
+                bda = bda.trimEnd(':')
+                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
+                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
+                    name += c
+                }
+                Log.d(KotlinService, "\t\t\tdiscovery ==> RSSI: ${cmdBuf[6]} \taddress: $bda \tname: $name")
+            }
+            0xeb.toByte() -> {
+                var bda = ""
+                var name = ""
+                var c : Char
+
+                for(i in 0 .. 5) {
+                    bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
+                }
+                bda = bda.trimEnd(':')
+                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
+                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
+                    name += c
+                }
+                Log.d(KotlinService, "\t\t\tbluetooth name changed ==> address: $bda \tname: $name")
+            }
+            0xed.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x0a.toByte() -> "BOND_NONE"
+                    0x0b.toByte() -> "BOND_BONDING"
+                    0x0c.toByte() -> "BOND_BONDED"
+                    else -> "BOND_UNKNOWN"
+                }
+                Log.d(KotlinService,  "device: $btDevice bond state: $str")
+            }
+            0xef.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x14.toByte() -> "SCAN_MODE_NONE"
+                    0x15.toByte() -> "SCAN_MODE_CONNECTABLE"
+                    0x17.toByte() -> "SCAN_MODE_CONNECTABLE_DISCOVERABLE"
+                    else -> "SCAN_MODE_UNKNOWN"
+                }
+                Log.d(KotlinService,  "device: $btDevice scan mode state: $str")
+            }
+            0xf1.toByte() -> {
+                var name = ""
+                var c : Char
+
+                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
+                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
+                    name += c
+                }
+                Log.d(KotlinService, "\t\t\tlocal name changed ==> name: $name")
+            }
+            else -> Log.d(KotlinService, " other command data: ${cmdBuf[2].toUByte().toString(16)} ${cmdBuf[3].toUByte().toString(16)} ${cmdBuf[4].toUByte().toString(16)} ${cmdBuf[5].toUByte().toString(16)}")
+        }
     }
 }

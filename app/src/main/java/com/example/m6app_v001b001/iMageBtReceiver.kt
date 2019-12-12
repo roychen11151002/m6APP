@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 
-private const val KotlinclientReceiver = "kotlinTest"
+private const val KotlinclientReceiver = "kotlinReceiverTest"
 
 class iMageBtClientReceiver : BroadcastReceiver() {
 
@@ -103,7 +103,7 @@ class iMageBtClientReceiver : BroadcastReceiver() {
 
                 Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp rssi $rssi")
             }
-            0xf0.toByte() -> {
+            0xe1.toByte() -> {
                 var str = when(cmdBuf[6]) {
                     0x0a.toByte() -> "STATE_OFF"
                     0x0b.toByte() -> "STATE_TURNING_ON"
@@ -116,23 +116,31 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                 }
                 Log.d(KotlinclientReceiver,  "bluetooth state: $str")
             }
-            0xf1.toByte() -> {
-                var str : String
-                if(cmdBuf[6] == 0x00.toByte())
-                    str = "CONNECTED"
-                else
-                    str = "DISCONNECT"
-                Log.d(KotlinclientReceiver,  "device: $btDevice connect state: $str")
+            0xe3.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x00.toByte() -> "CONNECTED"
+                    0x01.toByte() -> "DISCONNECT"
+                    else -> "UNKNOWN"
+                }
+                Log.d(KotlinclientReceiver, "device: $btDevice connect state: $str")
             }
-            0xf8.toByte() -> {
-                var str : String
-                if(cmdBuf[6] == 0x01.toByte())
-                    str = "ENABLE"
-                else
-                    str = "DISABLE"
+            0xe5.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x01.toByte() -> "STATE_CONNECTED"
+                    0x02.toByte() -> "STATE_DISCONNECT"
+                    else -> "STATE_UNKNOWN"
+                }
+                Log.d(KotlinclientReceiver,  "bluetooth connect state: $str")
+            }
+            0xe7.toByte() -> {
+                var str = when(cmdBuf[6]) {
+                    0x00.toByte() -> "DISABLE"
+                    0x01.toByte() -> "ENABLE"
+                    else -> "KNOWN"
+                }
                 Log.d(KotlinclientReceiver,  "bluetooth DISCOVERY: $str")
             }
-            0xf9.toByte() -> {
+            0xe9.toByte() -> {
                 var bda = ""
                 var name = ""
                 var c : Char
@@ -147,7 +155,7 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                 }
                 Log.d(KotlinclientReceiver, "\t\t\tdiscovery ==> RSSI: ${cmdBuf[6]} \taddress: $bda \tname: $name")
             }
-            0xfa.toByte() -> {
+            0xeb.toByte() -> {
                 var bda = ""
                 var name = ""
                 var c : Char
@@ -162,17 +170,7 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                 }
                 Log.d(KotlinclientReceiver, "\t\t\tbluetooth name changed ==> address: $bda \tname: $name")
             }
-            0xfb.toByte() -> {
-                var name = ""
-                var c : Char
-
-                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
-                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
-                    name += c
-                }
-                Log.d(KotlinclientReceiver, "\t\t\tlocal name changed ==> name: $name")
-            }
-            0xfc.toByte() -> {
+            0xed.toByte() -> {
                 var str = when(cmdBuf[6]) {
                     0x0a.toByte() -> "BOND_NONE"
                     0x0b.toByte() -> "BOND_BONDING"
@@ -181,7 +179,7 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                 }
                 Log.d(KotlinclientReceiver,  "device: $btDevice bond state: $str")
             }
-            0xfd.toByte() -> {
+            0xef.toByte() -> {
                 var str = when(cmdBuf[6]) {
                     0x14.toByte() -> "SCAN_MODE_NONE"
                     0x15.toByte() -> "SCAN_MODE_CONNECTABLE"
@@ -189,6 +187,16 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                     else -> "SCAN_MODE_UNKNOWN"
                 }
                 Log.d(KotlinclientReceiver,  "device: $btDevice scan mode state: $str")
+            }
+            0xf1.toByte() -> {
+                var name = ""
+                var c : Char
+
+                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
+                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
+                    name += c
+                }
+                Log.d(KotlinclientReceiver, "\t\t\tlocal name changed ==> name: $name")
             }
             else -> Log.d(KotlinclientReceiver, " other command data: ${cmdBuf[2].toUByte().toString(16)} ${cmdBuf[3].toUByte().toString(16)} ${cmdBuf[4].toUByte().toString(16)} ${cmdBuf[5].toUByte().toString(16)}")
         }

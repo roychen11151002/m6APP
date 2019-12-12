@@ -78,7 +78,7 @@ enum class CmdId(val value: Byte) {
     GET_HFP_RSSI_RSP(0x71.toByte())
 }
 
-private const val KotlinLog = "kotlinTest"
+private const val KotlinLog = "kotlinMainTest"
 private val iMageBtServiceRequest: Int = 3
 
 data class FunctionFeature(
@@ -156,6 +156,17 @@ class MainActivity : AppCompatActivity() {
         var intentFilter = IntentFilter()
         intentFilter.addAction("iMageClientMessage")
         registerReceiver(iMageBtClientReceiver(), intentFilter)
+        intentImageBtService = Intent(this, iMageBtService::class.java)
+        // start service
+        btServiceData.btDeviceNo = 0
+        btServiceData.btGroup = 0
+        startService(intentImageBtService.putExtra("btServiceData", btServiceData))
+/*
+        // bind service
+        btServiceData.btDeviceNo = 0
+        btServiceData.btGroup = 0
+        bindService(intentImageBtService.putExtra("btServiceData", btServiceData), iMageBtServiceConn, Context.BIND_AUTO_CREATE)
+ */
         btInit()
         txv1.setOnClickListener {
             val getDevIdCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, CmdDevSrc, CmdId.GET_SRC_DEV_NO_REQ.value , 1, 0x00, 0x00)
@@ -177,44 +188,46 @@ class MainActivity : AppCompatActivity() {
             val getAgStateCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_STA_REQ.value, 0, 0x00)
             val getAgExtStaCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_EXT_STA_REQ.value, 0, 0x00)
             val getAgRssiCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_RSSI_REQ.value , 0, 0x00)
+            val ctrlBtConCmd : ByteArray = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe0.toByte() , 1, 0x01, 0x00)
 
-            btCmdSend(getDevIdCmd, 0)
-            btCmdSend(getSrcFwCmd, 0)
-            btCmdSend(getSrcNameCmd, 0)
-            btCmdSend(getSrcVerCmd, 0)
-            btCmdSend(getSrcFeatureCmd, 0)
-            btCmdSend(getSrcPskeyCmd, 0)
-            btCmdSend(getSrcVolCmd, 0)
-            btCmdSend(getAgFwCmd, 0)
-            btCmdSend(getAgNameCmd, 0)
-            btCmdSend(getAgVerCmd, 0)
-            btCmdSend(getAgFeatureCmd, 0)
-            btCmdSend(getAgPskeyCmd, 0)
-            btCmdSend(getAgVolCmd, 0)
-            btCmdSend(getSrcStateCmd, 0)
-            btCmdSend(getSrcExtStaCmd, 0)
-            btCmdSend(getAgStateCmd, 0)
-            btCmdSend(getAgExtStaCmd, 0)
-            btCmdSend(getAgRssiCmd, 0)
+            btCmdSend(ctrlBtConCmd, 0, 1)
+            btCmdSend(getDevIdCmd, 0, 0)
+            btCmdSend(getSrcFwCmd, 0, 0)
+            btCmdSend(getSrcNameCmd, 0, 0)
+            btCmdSend(getSrcVerCmd, 0, 0)
+            btCmdSend(getSrcFeatureCmd, 0, 0)
+            btCmdSend(getSrcPskeyCmd, 0, 0)
+            btCmdSend(getSrcVolCmd, 0, 0)
+            btCmdSend(getAgFwCmd, 0, 0)
+            btCmdSend(getAgNameCmd, 0, 0)
+            btCmdSend(getAgVerCmd, 0, 0)
+            btCmdSend(getAgFeatureCmd, 0, 0)
+            btCmdSend(getAgPskeyCmd, 0, 0)
+            btCmdSend(getAgVolCmd, 0, 0)
+            btCmdSend(getSrcStateCmd, 0, 0)
+            btCmdSend(getSrcExtStaCmd, 0, 0)
+            btCmdSend(getAgStateCmd, 0, 0)
+            btCmdSend(getAgExtStaCmd, 0, 0)
+            btCmdSend(getAgRssiCmd, 0, 0)
 
-            btCmdSend(getDevIdCmd, 1)
-            btCmdSend(getSrcFwCmd, 1)
-            btCmdSend(getSrcNameCmd, 1)
-            btCmdSend(getSrcVerCmd, 1)
-            btCmdSend(getSrcFeatureCmd, 1)
-            btCmdSend(getSrcPskeyCmd, 1)
-            btCmdSend(getSrcVolCmd, 1)
-            btCmdSend(getAgFwCmd, 1)
-            btCmdSend(getAgNameCmd, 1)
-            btCmdSend(getAgVerCmd, 1)
-            btCmdSend(getAgFeatureCmd, 1)
-            btCmdSend(getAgPskeyCmd, 1)
-            btCmdSend(getAgVolCmd, 1)
-            btCmdSend(getSrcStateCmd, 1)
-            btCmdSend(getSrcExtStaCmd, 1)
-            btCmdSend(getAgStateCmd, 1)
-            btCmdSend(getAgExtStaCmd, 1)
-            btCmdSend(getAgRssiCmd, 1)
+            btCmdSend(getDevIdCmd, 1, 0)
+            btCmdSend(getSrcFwCmd, 1, 0)
+            btCmdSend(getSrcNameCmd, 1, 0)
+            btCmdSend(getSrcVerCmd, 1, 0)
+            btCmdSend(getSrcFeatureCmd, 1, 0)
+            btCmdSend(getSrcPskeyCmd, 1, 0)
+            btCmdSend(getSrcVolCmd, 1, 0)
+            btCmdSend(getAgFwCmd, 1, 0)
+            btCmdSend(getAgNameCmd, 1, 0)
+            btCmdSend(getAgVerCmd, 1, 0)
+            btCmdSend(getAgFeatureCmd, 1, 0)
+            btCmdSend(getAgPskeyCmd, 1, 0)
+            btCmdSend(getAgVolCmd, 1, 0)
+            btCmdSend(getSrcStateCmd, 1, 0)
+            btCmdSend(getSrcExtStaCmd, 1, 0)
+            btCmdSend(getAgStateCmd, 1, 0)
+            btCmdSend(getAgExtStaCmd, 1, 0)
+            btCmdSend(getAgRssiCmd, 1, 0)
         }
     }
 
@@ -300,12 +313,12 @@ class MainActivity : AppCompatActivity() {
                 intentImageBtService = Intent(this, iMageBtService::class.java)
                 // bind service
                 btServiceData.btDeviceNo = 0
-                btServiceData.btGroup = 1
+                btServiceData.btGroup = 0
                 bindService(intentImageBtService.putExtra("btServiceData", btServiceData), iMageBtServiceConn, Context.BIND_AUTO_CREATE)
                 // start service
-                btServiceData.btDeviceNo = 2
-                btServiceData.btGroup = 4
-                startService(intentImageBtService.putExtra("btServiceData", btServiceData))
+                // btServiceData.btDeviceNo = 0
+                // btServiceData.btGroup = 0
+                // startService(intentImageBtService.putExtra("btServiceData", btServiceData))
             }
         } else {
             startActivityForResult(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), iMageBtServiceRequest)
@@ -313,13 +326,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun btCmdSend(cmd: ByteArray, btDevice: Int)
-    {
+    fun btCmdSend(cmd: ByteArray, btDevice: Int, btGroup: Int) {
         btServiceData.btDeviceNo = btDevice
-        btServiceData.btGroup = 0
+        btServiceData.btGroup = btGroup
         System.arraycopy(cmd, 0, btServiceData.btCmd, 0, cmd[5] + 7)
-        Log.d(KotlinLog, "btCmdSend")
-
+        // Log.d(KotlinLog, "btCmdSend")
         sendBroadcast(Intent("iMageBtService.iMageBtServiceReceiver").putExtra("btServiceData", btServiceData))
     }
 }
