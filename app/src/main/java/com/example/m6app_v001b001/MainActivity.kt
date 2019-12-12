@@ -107,7 +107,7 @@ data class VolumeStruct(
     var spkr: Byte = 0x00)
 
 class BluetoothBase() {
-    var btAddr: String = "C4:FF:BC:4F:FE:88"
+    var btAddr: String = "C4:FF:BC:4F:FE:00"
     var btIdType: Int = 0x00
     var firmwareVersion: String = "iMage firmware"
     var localName: String = "iMage Device Name"
@@ -188,9 +188,15 @@ class MainActivity : AppCompatActivity() {
             val getAgStateCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_STA_REQ.value, 0, 0x00)
             val getAgExtStaCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_EXT_STA_REQ.value, 0, 0x00)
             val getAgRssiCmd = byteArrayOf(CmdHff, CmdHd55, CmdDevHost, 0x38, CmdId.GET_HFP_RSSI_REQ.value , 0, 0x00)
-            val ctrlBtConCmd : ByteArray = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe0.toByte() , 1, 0x01, 0x00)
+            val ctrlBtBdaCmd = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe0.toByte() , 7, 0x00, 0xc4.toByte(), 0xff.toByte(), 0xbc.toByte(), 0x4f.toByte(), 0xfe.toByte(), 0x88.toByte(), 0x00)
+            val ctrlBtConCmd = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe2.toByte() , 7, 0x01, 0xc4.toByte(), 0xff.toByte(), 0xbc.toByte(), 0x4f.toByte(), 0xfe.toByte(), 0x88.toByte(), 0x00)
+            val ctrlBtDiscoveryCmd = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe6.toByte() , 0, 0x01, 0x00)
+            val ctrlBtPairedCmd = byteArrayOf(CmdHff, CmdHd55, 0x00, 0x00, 0xe8.toByte() , 0, 0x00)
 
+            // btCmdSend(ctrlBtBdaCmd, 0, 1)
             btCmdSend(ctrlBtConCmd, 0, 1)
+            btCmdSend(ctrlBtDiscoveryCmd, 0, 1)
+            btCmdSend(ctrlBtPairedCmd, 0, 1)
             btCmdSend(getDevIdCmd, 0, 0)
             btCmdSend(getSrcFwCmd, 0, 0)
             btCmdSend(getSrcNameCmd, 0, 0)

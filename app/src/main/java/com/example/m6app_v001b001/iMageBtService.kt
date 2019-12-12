@@ -58,7 +58,7 @@ data class iMageBtServiceData(var btDeviceNo: Int = 0, var btGroup: Int = 0) : P
 class iMageBtService : Service() {
     var isServiceStart = false
     lateinit var clientHandler: Messenger
-    var serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:88")}
+    var serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:00")}
 
     inner class ServiceBtDevice(var btBda: String) {
         var rfcSocket = btAdapter.getRemoteDevice(btBda).createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
@@ -510,7 +510,6 @@ class iMageBtService : Service() {
                 serviceBtDevice[0].connect()
             }
             if (serviceBtDevice[1].isConnect() == false) {
-                serviceBtDevice[1].btBda = "C4:FF:BC:4F:FE:86"
                 serviceBtDevice[1].connect()
             }
  */
@@ -522,93 +521,76 @@ class iMageBtService : Service() {
     fun rfcCmdParse(cmdBuf: ByteArray, btDevice: Int) {
         when(cmdBuf[4]) {
             0xe0.toByte() -> {
+                var bda = ""
+
+                for(i in 0 .. 5) {
+                    bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
+                }
+                serviceBtDevice[btDevice].btBda = bda.trimEnd(':')
+                Log.d(KotlinService, "bluetooth address changed ==> device: ${serviceBtDevice[btDevice].btReceiverData.btDeviceNo} address: ${serviceBtDevice[btDevice].btBda}")
+
+            }
+            0xe2.toByte() -> {
+                if(cmdBuf[5] == 7.toByte()) {
+                    var bda = ""
+
+                    for(i in 0 .. 5) {
+                        bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
+                    }
+                    serviceBtDevice[btDevice].btBda = bda.trimEnd(':')
+                    Log.d(KotlinService, "bluetooth control ==> device: ${serviceBtDevice[btDevice].btReceiverData.btDeviceNo} address: ${serviceBtDevice[btDevice].btBda}")
+                }
                 when(cmdBuf[6]) {
                     0x00.toByte() -> serviceBtDevice[btDevice].close()
                     0x01.toByte() -> serviceBtDevice[btDevice].connect()
                     else -> serviceBtDevice[btDevice].close()
                 }
             }
-            0xe3.toByte() -> {
-                var str = when(cmdBuf[6]) {
-                    0x00.toByte() -> "CONNECTED"
-                    0x01.toByte() -> "DISCONNECT"
-                    else -> "UNKNOWN"
+            0xe6.toByte() -> {
+                when(cmdBuf[6]) {
+                    0x00.toByte() -> btAdapter.cancelDiscovery()
+                    0x01.toByte() -> btAdapter.startDiscovery()
+                    else -> btAdapter.cancelDiscovery()
                 }
-                Log.d(KotlinService, "device: $btDevice connect state: $str")
+                Log.d(KotlinService,  "bluetooth DISCOVERY")
             }
-            0xe5.toByte() -> {
-                var str = when(cmdBuf[6]) {
-                    0x01.toByte() -> "STATE_CONNECTED"
-                    0x02.toByte() -> "STATE_DISCONNECT"
-                    else -> "STATE_UNKNOWN"
-                }
-                Log.d(KotlinService,  "bluetooth connect state: $str")
-            }
-            0xe7.toByte() -> {
-                var str = when(cmdBuf[6]) {
-                    0x00.toByte() -> "DISABLE"
-                    0x01.toByte() -> "ENABLE"
-                    else -> "KNOWN"
-                }
-                Log.d(KotlinService,  "bluetooth DISCOVERY: $str")
-            }
-            0xe9.toByte() -> {
-                var bda = ""
-                var name = ""
-                var c : Char
+            0xe8.toByte() -> {
+                var btParseData = iMageBtServiceData(0, 0)
+                val paired = btAdapter.bondedDevices
+                var s: Int
 
-                for(i in 0 .. 5) {
-                    bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
-                }
-                bda = bda.trimEnd(':')
-                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
-                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
-                    name += c
-                }
-                Log.d(KotlinService, "\t\t\tdiscovery ==> RSSI: ${cmdBuf[6]} \taddress: $bda \tname: $name")
-            }
-            0xeb.toByte() -> {
-                var bda = ""
-                var name = ""
-                var c : Char
+                if(paired.size > 0) {
+                    btParseData.btGroup = 1
+                    btParseData.btDeviceNo = 0
+                    btParseData.btCmd[0] = 0xff.toByte()
+                    btParseData.btCmd[1] = 0x55.toByte()
+                    btParseData.btCmd[2] = 0x00.toByte()
+                    btParseData.btCmd[3] = 0x00.toByte()
+                    btParseData.btCmd[4] = 0xe9.toByte()
+                    btParseData.btCmd[6] = 0x00.toByte()
+                    for (device in paired) {
+                        var str = device.address.split(":")
 
-                for(i in 0 .. 5) {
-                    bda += cmdBuf[i + 7].toUByte().toString(16).toUpperCase() + ":"
+                        if (device.name != null)
+                            btParseData.btCmd[5] = (device.name.length * 2 + 7).toByte()
+                        else
+                            btParseData.btCmd[5] = 7.toByte()
+                        for (i in 0..5) {
+                            s = parseInt(str[i], 16)
+                            btParseData.btCmd[i + 7] = s.toByte()
+                        }
+                        if (device.name != null) {
+                            for (i in 0 until device.name.length) {
+                                s = device.name[i].toInt()
+                                btParseData.btCmd[i * 2 + 13] = s.shr(8).toByte()
+                                btParseData.btCmd[i * 2 + 1 + 13] = s.and(0x00ff).toByte()
+                            }
+                        }
+                        BtCheckSum(btParseData.btCmd)
+                        sendBroadcast(Intent("iMageClientMessage").putExtra( "btServiceData", btParseData))
+                        Log.d(KotlinService, "PAIRED_FOUND ${device.name} ${device.address}")
+                    }
                 }
-                bda = bda.trimEnd(':')
-                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
-                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
-                    name += c
-                }
-                Log.d(KotlinService, "\t\t\tbluetooth name changed ==> address: $bda \tname: $name")
-            }
-            0xed.toByte() -> {
-                var str = when(cmdBuf[6]) {
-                    0x0a.toByte() -> "BOND_NONE"
-                    0x0b.toByte() -> "BOND_BONDING"
-                    0x0c.toByte() -> "BOND_BONDED"
-                    else -> "BOND_UNKNOWN"
-                }
-                Log.d(KotlinService,  "device: $btDevice bond state: $str")
-            }
-            0xef.toByte() -> {
-                var str = when(cmdBuf[6]) {
-                    0x14.toByte() -> "SCAN_MODE_NONE"
-                    0x15.toByte() -> "SCAN_MODE_CONNECTABLE"
-                    0x17.toByte() -> "SCAN_MODE_CONNECTABLE_DISCOVERABLE"
-                    else -> "SCAN_MODE_UNKNOWN"
-                }
-                Log.d(KotlinService,  "device: $btDevice scan mode state: $str")
-            }
-            0xf1.toByte() -> {
-                var name = ""
-                var c : Char
-
-                for(i in 0 until  (cmdBuf[5] - 7) / 2) {
-                    c = cmdBuf[i * 2 + 13].toInt().shl(8).and(0xff00).or(cmdBuf[i * 2 + 1 + 13].toInt().and(0x00ff)).toChar()
-                    name += c
-                }
-                Log.d(KotlinService, "\t\t\tlocal name changed ==> name: $name")
             }
             else -> Log.d(KotlinService, " other command data: ${cmdBuf[2].toUByte().toString(16)} ${cmdBuf[3].toUByte().toString(16)} ${cmdBuf[4].toUByte().toString(16)} ${cmdBuf[5].toUByte().toString(16)}")
         }
