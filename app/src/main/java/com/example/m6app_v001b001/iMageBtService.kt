@@ -58,11 +58,10 @@ data class iMageBtServiceData(var btDeviceNo: Int = 0, var btGroup: Int = 0) : P
 class iMageBtService : Service() {
     var isServiceStart = false
     lateinit var clientHandler: Messenger
-    var serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:00")}
+    lateinit var serviceBtDevice : Array<ServiceBtDevice>
 
     inner class ServiceBtDevice(var btBda: String) {
         var rfcSocket = btAdapter.getRemoteDevice(btBda).createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
-        var isBtConnected = false
         var btReceiverData = iMageBtServiceData(0, 0)
         var thread = Thread()
         val btReadThread = Runnable {
@@ -117,10 +116,9 @@ class iMageBtService : Service() {
                 }
             }
             Log.d(KotlinService, "bluetooth ${btReceiverData.btDeviceNo} disconnect and read thread free")
-            isBtConnected = false
         }
 
-        fun isConnect() = isBtConnected
+        fun isConnect() = rfcSocket.isConnected
 
         fun connect() {
             if(rfcSocket.isConnected == false) {
@@ -144,23 +142,17 @@ class iMageBtService : Service() {
                         if (rfcSocket.isConnected) {
                             thread = Thread(btReadThread)
                             thread.start()
+                            Log.d(KotlinService, "bluetooth connected ${btReceiverData.btDeviceNo}")
                             break
                         } else
                             SystemClock.sleep(5000)
                     }
                 }).start()
             }
-            if(rfcSocket.isConnected) {
-                Log.d(KotlinService, "bluetooth connected ${btReceiverData.btDeviceNo}")
-                isBtConnected = true
-            } else {
-                Log.d(KotlinService, "bluetooth disconnect ${btReceiverData.btDeviceNo}")
-                isBtConnected = false
-            }
         }
 
         fun rfcCmdSend(cmdBuf: ByteArray) {
-            if(isBtConnected) {
+            if(rfcSocket.isConnected) {
                 BtCheckSum(cmdBuf)
                 rfcSocket.outputStream.write(cmdBuf)
             }
@@ -169,7 +161,6 @@ class iMageBtService : Service() {
         fun close() {
             Log.d(KotlinService, "bluetooth ${btReceiverData.btDeviceNo} socket close")
             rfcSocket.close()
-            isBtConnected = false
         }
     }
 
@@ -238,6 +229,7 @@ class iMageBtService : Service() {
         registerReceiver(iMageBtServiceReceiver(), intentFilter)
         // send broadcast message to client
         // sendBroadcast(Intent("iMageClientMessage").putExtra("btServiceData", btServiceData))
+        serviceBtDevice = Array<ServiceBtDevice>(maxServiceBtDevice) { ServiceBtDevice("C4:FF:BC:4F:FE:00")}
         Log.d(KotlinService, "iMageBtService onCreate")
     }
 

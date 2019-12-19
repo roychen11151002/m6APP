@@ -14,7 +14,7 @@ class iMageBtClientReceiver : BroadcastReceiver() {
         // This method is called when the BroadcastReceiver is receiving an Intent broadcast.
         val btServiceData: iMageBtServiceData = intent.getParcelableExtra("btServiceData")
         // Log.d(KotlinclientReceiver, "client receive message ${btServiceData.btDeviceNo} ${btServiceData.btGroup}")
-        var str = "group ${btServiceData.btGroup} device ${btServiceData.btDeviceNo}    "
+        var str = "\t\t\t\t\t\t\t group ${btServiceData.btGroup} device ${btServiceData.btDeviceNo}    "
         for(i in 0 until btServiceData.btCmd[5].toUByte().toInt() + 7) {
             str += btServiceData.btCmd[i].toUByte().toString(16).toUpperCase() + " "
         }
@@ -39,46 +39,279 @@ class iMageBtClientReceiver : BroadcastReceiver() {
             CmdId.GET_HFP_STA_RSP.value -> {
                 var state = cmdBuf[6].toUInt().and(0xff.toUInt()).shl(24) + cmdBuf[7].toUInt().and(0xff.toUInt()).shl(16) + cmdBuf[8].toUInt().and(0xff.toUInt()).shl(8) + cmdBuf[9].toUInt().and(0xff.toUInt())
 
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} HFP status get ${state.toString(16)} ")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btBase.conStatus = state
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btBase.conStatus = state
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btBase.conStatus = state
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btBase.conStatus = state
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btBase.conStatus = state
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btBase.conStatus = state
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.conStatus = state
+                    else -> Log.d(KotlinclientReceiver, " HFP states get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} HFP status get ${state.toString(16)} ")
             }
             CmdId.GET_HFP_EXT_STA_RSP.value -> {
-                // var staExt = cmdBuf[6].toUInt().and(0xff.toUInt()).shl(8) + cmdBuf[7].toUInt().and(0xff.toUInt())
+                var staExt = cmdBuf[6].toUInt().and(0xff.toUInt().shl(8).toUShort() + cmdBuf[7].toUShort().and(0xff.toUShort())).toUShort()
 
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} HFP extra status get")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btBase.extStatus = staExt
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btBase.extStatus = staExt
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btBase.extStatus = staExt
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btBase.extStatus = staExt
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btBase.extStatus = staExt
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btBase.extStatus = staExt
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.extStatus = staExt
+                    else -> Log.d(KotlinclientReceiver, " HFP extra states get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} HFP extra status get")
             }
             CmdId.GET_HFP_LOCAL_NAME_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} local name: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    else -> Log.d(KotlinclientReceiver, " HFP local name get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} local name: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
             }
             CmdId.GET_AG_LOCAL_NAME_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} local name: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x08.toUByte() -> btM6Device.btAg[0].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x10.toUByte() -> btM6Device.btAg[1].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x18.toUByte() -> btM6Device.btAg[1].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x20.toUByte() -> btM6Device.btAg[2].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x28.toUByte() -> btM6Device.btAg[2].btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.localName = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    else -> Log.d(KotlinclientReceiver, " AGHFP local get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} local name: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
             }
             CmdId.GET_HFP_VRESION_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} firmware version: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    else -> Log.d(KotlinclientReceiver, " HFP firmware version get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} firmware version: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
             }
             CmdId.GET_AG_VRESION_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} firmware version: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x08.toUByte() -> btM6Device.btAg[0].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x10.toUByte() -> btM6Device.btAg[1].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x18.toUByte() -> btM6Device.btAg[1].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x20.toUByte() -> btM6Device.btAg[2].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x28.toUByte() -> btM6Device.btAg[2].btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.firmwareVersion = String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())
+                    else -> Log.d(KotlinclientReceiver, " AGHFP firmware version get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} firmware version: ${String(cmdBuf, 6, cmdBuf[5].toUByte().toInt())}")
             }
             CmdId.GET_SRC_DEV_NO_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} source device number ${cmdBuf[6].toUByte().toString(16)}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].deviceNo = cmdBuf[6].toUByte()
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].deviceNo = cmdBuf[6].toUByte()
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].deviceNo = cmdBuf[6].toUByte()
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].deviceNo = cmdBuf[6].toUByte()
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].deviceNo = cmdBuf[6].toUByte()
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].deviceNo = cmdBuf[6].toUByte()
+                    0x30.toUByte() -> btM6Device.btSrcHfp.deviceNo = cmdBuf[6].toUByte()
+                    else -> Log.d(KotlinclientReceiver, " source number get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} source device number ${cmdBuf[6].toUByte().toString(16)}")
             }
             CmdId.GET_HFP_VOL_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} volume ${cmdBuf[6].toUByte().toString(16)}")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].volHfp = cmdBuf[6].toUByte()
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].volHfp = cmdBuf[6].toUByte()
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].volHfp = cmdBuf[6].toUByte()
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].volHfp = cmdBuf[6].toUByte()
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].volHfp = cmdBuf[6].toUByte()
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].volHfp = cmdBuf[6].toUByte()
+                    0x30.toUByte() -> btM6Device.btSrcHfp.volHfp = cmdBuf[6].toUByte()
+                    else -> Log.d(KotlinclientReceiver, " HFP RSSI get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} volume ${cmdBuf[6].toUByte().toString(16)}")
             }
             CmdId.GET_HFP_PAIR_RSP.value -> {
-                var bdaLap = cmdBuf[6].toUInt().and(0xff.toUInt()).shl(24) + cmdBuf[7].toUInt().and(0xff.toUInt()).shl(16) + cmdBuf[8].toUInt().and(0xff.toUInt()).shl(8) + cmdBuf[9].toUInt().and(0xff.toUInt())
-                var bdaUap = cmdBuf[10].toUByte()
-                var bdaNap = cmdBuf[11].toUInt().and(0xff.toUInt()).shl(8) + cmdBuf[12].toUInt().and(0xff.toUInt())
+                var bda = cmdBuf[11].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[12].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[10].toUByte().toString(16).toUpperCase() + ":" +
+                        cmdBuf[7].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[8].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[9].toUByte().toString(16).toUpperCase()
 
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)}  get hfp pair bda: ${bdaNap.toString(16)} : ${bdaUap.toString(16)} : ${bdaLap.toString(16)} ")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btPairBda = bda
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btPairBda = bda
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btPairBda = bda
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btPairBda = bda
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btPairBda = bda
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btPairBda = bda
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btPairBda = bda
+                    else -> Log.d(KotlinclientReceiver, " HFP paired bt address get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)}  get hfp pair bda: ${bdaNap.toString(16)} : ${bdaUap.toString(16)} : ${bdaLap.toString(16)} ")
             }
             CmdId.SET_HFP_PAIR_RSP.value -> {
                 Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} set hfp pair bda")
             }
+            CmdId.GET_HFP_BDA_RSP.value -> {
+                var bda = cmdBuf[11].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[12].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[10].toUByte().toString(16).toUpperCase() + ":" +
+                        cmdBuf[7].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[8].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[9].toUByte().toString(16).toUpperCase()
+
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].btBase.btBda = bda
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].btBase.btBda = bda
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].btBase.btBda = bda
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].btBase.btBda = bda
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].btBase.btBda = bda
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].btBase.btBda = bda
+                    0x30.toUByte() -> btM6Device.btSrcHfp.btBase.btBda = bda
+                    else -> Log.d(KotlinclientReceiver, " hfp address get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)}  get hfp bda bda: ${bdaNap.toString(16)} : ${bdaUap.toString(16)} : ${bdaLap.toString(16)} ")
+            }
+            CmdId.GET_AG_BDA_RSP.value -> {
+                var bda = cmdBuf[11].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[12].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[10].toUByte().toString(16).toUpperCase() + ":" +
+                        cmdBuf[7].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[8].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[9].toUByte().toString(16).toUpperCase()
+
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btBase.btBda = bda
+                    0x08.toUByte() -> btM6Device.btAg[0].btBase.btBda = bda
+                    0x10.toUByte() -> btM6Device.btAg[1].btBase.btBda = bda
+                    0x18.toUByte() -> btM6Device.btAg[1].btBase.btBda = bda
+                    0x20.toUByte() -> btM6Device.btAg[2].btBase.btBda = bda
+                    0x28.toUByte() -> btM6Device.btAg[2].btBase.btBda = bda
+                    else -> Log.d(KotlinclientReceiver, " aghfp address get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)}  get aghfp bda bda: ${bdaNap.toString(16)} : ${bdaUap.toString(16)} : ${bdaLap.toString(16)} ")
+            }
             CmdId.GET_HFP_FEATURE_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp feature ${cmdBuf[6].toUInt().shl(8).and(0xffff.toUInt()).or(cmdBuf[7].toUInt()).toString(16)}")
+                var feature = (cmdBuf[6].toUShort().and(0xff.toUShort()).toUInt().shl(8).toUShort() + cmdBuf[7].toUShort().and(0xff.toUShort())).toUShort()
+                var maxSlaveNo: UByte = cmdBuf[8].toUByte()
+                var maxSlaveTalk: UByte = cmdBuf[9].toUByte()
+                var bda: String = cmdBuf[15].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[16].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[14].toUByte().toString(16).toUpperCase() + ":" +
+                        cmdBuf[11].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[12].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[13].toUByte().toString(16).toUpperCase()
+                var led = ushortArrayOf((cmdBuf[17].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[18].toUShort().and(0xff.toUShort())).toUShort(), (cmdBuf[19].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[20].toUShort().and(0xff.toUShort())).toUShort(),
+                    (cmdBuf[21].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[22].toUShort().and(0xff.toUShort())).toUShort(), (cmdBuf[23].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[24].toUShort().and(0xff.toUShort())).toUShort())
+
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> {
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x08.toUByte() -> {
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    0x10.toUByte() -> {
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x18.toUByte() -> {
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    0x20.toUByte() -> {
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x28.toUByte() -> {
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    0x30.toUByte() -> {
+                        btM6Device.btSrcHfp.btBase.funFeature.feature = feature
+                        btM6Device.btSrcHfp.btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btSrcHfp.btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btSrcHfp.btBase.funFeature.led = led
+                        btM6Device.btSrcHfp.btBase.funFeature.filterBda = bda
+                    }
+                    else -> Log.d(KotlinclientReceiver, " HFP feature get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp feature ${cmdBuf[6].toUInt().shl(8).and(0xffff.toUInt()).or(cmdBuf[7].toUInt()).toString(16)}")
             }
             CmdId.GET_AG_FEATURE_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get ag feature ${cmdBuf[6].toUInt().shl(8).and(0xffff.toUInt()).or(cmdBuf[7].toUInt()).toString(16)}")
+                var feature: UShort = (cmdBuf[6].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[7].toUShort().and(0xff.toUShort())).toUShort()
+                var maxSlaveNo: UByte = cmdBuf[8].toUByte()
+                var maxSlaveTalk: UByte = cmdBuf[9].toUByte()
+                var bda: String = cmdBuf[15].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[16].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[14].toUByte().toString(16).toUpperCase() + ":" +
+                        cmdBuf[11].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[12].toUByte().toString(16).toUpperCase() + ":" + cmdBuf[13].toUByte().toString(16).toUpperCase()
+                var led = ushortArrayOf((cmdBuf[17].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[18].toUShort().and(0xff.toUShort())).toUShort(), (cmdBuf[19].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[20].toUShort().and(0xff.toUShort())).toUShort(),
+                    (cmdBuf[21].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[22].toUShort().and(0xff.toUShort())).toUShort(), (cmdBuf[23].toUInt().and(0xff.toUInt()).shl(8).toUShort() + cmdBuf[24].toUShort().and(0xff.toUShort())).toUShort())
+
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> {
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[0].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x08.toUByte() -> {
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[0].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    0x10.toUByte() -> {
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[1].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x18.toUByte() -> {
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[1].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    0x20.toUByte() -> {
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.feature = feature
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.led = led
+                        btM6Device.btAg[2].btHfp[0].btBase.funFeature.filterBda = bda
+                    }
+                    0x28.toUByte() -> {
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.feature = feature
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.maxSlaveNo = maxSlaveNo
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.maxTalkNo = maxSlaveTalk
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.led = led
+                        btM6Device.btAg[2].btHfp[1].btBase.funFeature.filterBda = bda
+                    }
+                    else -> Log.d(KotlinclientReceiver, " AGHFP feature get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get ag feature ${cmdBuf[6].toUInt().shl(8).and(0xffff.toUInt()).or(cmdBuf[7].toUInt()).toString(16)}")
             }
             CmdId.GET_HFP_PSKEY_RSP.value -> {
                 Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp pskey id: ${cmdBuf[6].toUInt().shl(8).or(cmdBuf[7].toUInt())}")
@@ -93,15 +326,45 @@ class iMageBtClientReceiver : BroadcastReceiver() {
                 Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} set ag pskey")
             }
             CmdId.GET_SRC_VOL_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get src spkr vol: ${cmdBuf[7].toInt().and(0x0f)}, mic vol: ${cmdBuf[7].toInt().shr(4).and(0x0f)}")
-            }
-            CmdId.GET_AG_VOL_RSP.value -> {
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get ag spkr vol: ${cmdBuf[7].toInt().and(0x0f)}, mic vol: ${cmdBuf[7].toInt().shr(4).and(0x0f)}")
+                var vol = (cmdBuf[6].toUInt().and(0xff.toUInt()).shl(8) + cmdBuf[7].toUShort().and(0xff.toUShort())).toUShort()
+
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> {
+                        btM6Device.btAg[0].volSrc[0] = vol
+                    }
+                    0x08.toUByte() -> {
+                        btM6Device.btAg[0].volSrc[1] = vol
+                    }
+                    0x10.toUByte() -> {
+                        btM6Device.btAg[1].volSrc[0] = vol
+                    }
+                    0x18.toUByte() -> {
+                        btM6Device.btAg[1].volSrc[1] = vol
+                    }
+                    0x20.toUByte() -> {
+                        btM6Device.btAg[2].volSrc[0] = vol
+                    }
+                    0x28.toUByte() -> {
+                        btM6Device.btAg[2].volSrc[1] = vol
+                    }
+                    else -> Log.d(KotlinclientReceiver, " HFP RSSI get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get ag spkr vol: ${cmdBuf[7].toInt().and(0x0f)}, mic vol: ${cmdBuf[7].toInt().shr(4).and(0x0f)}")
             }
             CmdId.GET_HFP_RSSI_RSP.value -> {
-                var rssi = cmdBuf[6].toInt().shl(8).or(cmdBuf[7].toInt())
+                var rssi = (cmdBuf[6].toInt().shl(8).or(cmdBuf[7].toInt())).toShort()
 
-                Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp rssi $rssi")
+                when(cmdBuf[2].toUByte()) {
+                    0x00.toUByte() -> btM6Device.btAg[0].btHfp[0].rssi = rssi
+                    0x08.toUByte() -> btM6Device.btAg[0].btHfp[1].rssi = rssi
+                    0x10.toUByte() -> btM6Device.btAg[1].btHfp[0].rssi = rssi
+                    0x18.toUByte() -> btM6Device.btAg[1].btHfp[1].rssi = rssi
+                    0x20.toUByte() -> btM6Device.btAg[2].btHfp[0].rssi = rssi
+                    0x28.toUByte() -> btM6Device.btAg[2].btHfp[1].rssi = rssi
+                    0x30.toUByte() -> btM6Device.btSrcHfp.rssi = rssi
+                    else -> Log.d(KotlinclientReceiver, " HFP RSSI get other source ${cmdBuf[2]}")
+                }
+                // Log.d(KotlinclientReceiver, " src ${cmdBuf[2].toUByte().toString(16)} get hfp rssi $rssi")
             }
             0xe1.toByte() -> {
                 var str = when(cmdBuf[6]) {
@@ -126,8 +389,8 @@ class iMageBtClientReceiver : BroadcastReceiver() {
             }
             0xe5.toByte() -> {
                 var str = when(cmdBuf[6]) {
+                    0x00.toByte() -> "STATE_DISCONNECT"
                     0x01.toByte() -> "STATE_CONNECTED"
-                    0x02.toByte() -> "STATE_DISCONNECT"
                     else -> "STATE_UNKNOWN"
                 }
                 Log.d(KotlinclientReceiver,  "bluetooth connect state: $str")
